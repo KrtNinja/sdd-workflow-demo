@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDD workflow demo</title>
+<meta name="description" content="Spec-Driven Development на примере поиска по интернет-магазину: Dev Spec → slices → OpenSpec Change, фронтенд и бэкенд.">
+<style>
+:root{
+  --bg:#f7f6f2;--surface:#fff;--ink:#1d1c19;--muted:#6b6962;--line:#dcd9cf;--line-strong:#b9b5a8;
+  --be:#5b4fc4;--be-bg:#efedfd;--fe:#0f7a5c;--fe-bg:#e3f4ed;--shared:#8a5a0b;--shared-bg:#fbf0dc;
+  --gate:#a3352f;--active:#1d1c19;--code-bg:#f1efe8;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#171715;--surface:#22221f;--ink:#ecebe6;--muted:#a3a198;--line:#3a3934;--line-strong:#57554e;
+  --be:#b4adf3;--be-bg:#2c2846;--fe:#7fd6b6;--fe-bg:#163a2f;--shared:#f0c069;--shared-bg:#3b2d12;
+  --gate:#f08f86;--active:#ecebe6;--code-bg:#2b2b27;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans)}
+header{padding:28px 24px 8px;max-width:1440px;margin:0 auto}
+h1{font-size:24px;margin:0 0 4px;font-weight:650;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0;max-width:760px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 0;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;border:1px solid}
+main{max-width:1440px;margin:0 auto;padding:16px 24px 48px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+section h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 12px;font-weight:600}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.left{display:flex;flex-direction:column;gap:24px}
+
+/* nodes */
+.node{all:unset;box-sizing:border-box;display:block;cursor:pointer;width:100%;background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:10px 12px;transition:border-color .12s,box-shadow .12s}
+.node:hover{border-color:var(--ink)}
+.node:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.node[aria-current="true"]{border-color:var(--active);box-shadow:0 0 0 2px var(--active) inset}
+.node b{display:block;font-weight:600;font-size:14px}
+.node small{display:block;color:var(--muted);font-size:12.5px;line-height:1.4;margin-top:2px}
+.node.shared{background:var(--shared-bg);border-color:color-mix(in srgb,var(--shared) 45%,transparent)}
+.node.be{background:var(--be-bg);border-color:color-mix(in srgb,var(--be) 45%,transparent)}
+.node.fe{background:var(--fe-bg);border-color:color-mix(in srgb,var(--fe) 45%,transparent)}
+.node.scaffold{border-style:dashed;background:transparent}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:1px 6px;border-radius:5px;margin-left:6px;vertical-align:1px}
+.tag.gate{color:var(--gate);border:1px solid currentColor}
+.tag.del{color:var(--muted);border:1px dashed currentColor}
+
+/* process */
+.flow{display:grid;grid-template-columns:1fr 148px;gap:14px}
+.steps{display:flex;flex-direction:column}
+.arrow{height:18px;display:flex;justify-content:center}
+.arrow::before{content:"";width:1px;background:var(--line-strong)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rail{all:unset;box-sizing:border-box;cursor:pointer;border:1px dashed var(--line-strong);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:center;text-align:center;font-size:12.5px;color:var(--muted)}
+.rail b{color:var(--ink);font-size:14px;display:block;margin-bottom:4px}
+.rail:hover{border-color:var(--ink)}
+.rail[aria-current="true"]{border-style:solid;border-color:var(--active);box-shadow:0 0 0 2px var(--active) inset}
+
+/* slice map */
+.map{display:grid;grid-template-columns:1fr 1.05fr 1fr;gap:8px 10px;align-items:stretch}
+.map .colh{font-size:12px;font-weight:600;color:var(--muted);text-align:center;padding-bottom:2px}
+.map .group{grid-column:1/-1;font-size:12px;color:var(--muted);margin:10px 0 0;display:flex;align-items:center;gap:8px}
+.map .group::after{content:"";flex:1;height:1px;background:var(--line)}
+.half{border-radius:8px;padding:8px 10px;font-size:12.5px;line-height:1.35;display:flex;align-items:center}
+.half.be{background:var(--be-bg);color:var(--ink);border:1px solid color-mix(in srgb,var(--be) 35%,transparent)}
+.half.fe{background:var(--fe-bg);color:var(--ink);border:1px solid color-mix(in srgb,var(--fe) 35%,transparent)}
+.half.none{border:1px dashed var(--line);color:var(--muted);justify-content:center}
+.map .node{text-align:center}
+.map .wide{grid-column:1/-1}
+.note{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+
+/* reader */
+.reader{position:sticky;top:16px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:0;overflow:hidden}
+.reader-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.crumb{font:12.5px var(--mono);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.reader-head a{font-size:12.5px;color:var(--ink);white-space:nowrap}
+.why{padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;background:var(--code-bg)}
+.why b{font-weight:600}
+.doc{padding:4px 18px 24px;overflow:auto}
+.doc h1{font-size:20px;margin:16px 0 8px}
+.doc h2{font-size:16px;margin:20px 0 6px;text-transform:none;letter-spacing:0;color:var(--ink)}
+.doc h3{font-size:14.5px;margin:16px 0 6px}
+.doc p,.doc li{font-size:14px}
+.doc code{font:12.5px var(--mono);background:var(--code-bg);padding:1px 4px;border-radius:4px}
+.doc pre{background:var(--code-bg);padding:12px;border-radius:8px;overflow:auto;font:12.5px/1.5 var(--mono)}
+.doc pre code{background:none;padding:0}
+.doc pre.ac{background:transparent;border:1px solid var(--line);border-left:3px solid var(--line-strong);white-space:pre-wrap;font:13px/1.55 var(--mono);margin:10px 0}
+.doc pre.ac b{font-weight:700}
+.doc li input{margin:0 4px 0 0;vertical-align:-1px}
+.doc table{border-collapse:collapse;font-size:13px;margin:8px 0;display:block;overflow:auto}
+.doc th,.doc td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+.doc th{background:var(--code-bg);font-weight:600}
+.doc blockquote{margin:8px 0;padding:6px 12px;border-left:3px solid var(--line-strong);color:var(--muted)}
+.doc a{color:var(--ink)}
+.empty{padding:32px 18px;color:var(--muted)}
+
+@media (max-width:1000px){
+  main{grid-template-columns:1fr}
+  .reader{position:static;max-height:none}
+}
+@media (max-width:560px){
+  header,main{padding-left:16px;padding-right:16px}
+  .flow{grid-template-columns:1fr}
+  .map{grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .half{font-size:11.5px;padding:6px}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Spec-Driven Development: поиск по интернет-магазину</h1>
+  <p class="lead">Задача «Добавьте контекстный поиск по сайту с горячими клавишами», разложенная от брейншторма до мержа. Нажмите на любой блок — откроется настоящий файл из репозитория.</p>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--shared-bg);border-color:var(--shared)"></i>общее для команды</span>
+    <span><i class="sw" style="background:var(--be-bg);border-color:var(--be)"></i>бэкенд</span>
+    <span><i class="sw" style="background:var(--fe-bg);border-color:var(--fe)"></i>фронтенд</span>
+    <span><i class="sw" style="border:1px dashed var(--line-strong)"></i>леса, удаляются перед мержем</span>
+    <span><span class="tag gate" style="margin:0">checkpoint</span> решение человека</span>
+  </div>
+</header>
+
+<main>
+  <div class="left">
+    <section>
+      <h2>Процесс</h2>
+      <div class="panel flow">
+        <div class="steps">
+          <button class="node shared" data-file="docs/site-search/brainstorming.md" data-why="Агент задаёт вопросы, человек решает. Здесь видно, что агент решил бы сам, если отдать задачу одним промптом.">
+            <b>1. Brainstorming</b><small>Вопросы по фронту и бэку, решения фиксирует человек</small></button>
+          <div class="arrow"></div>
+          <button class="node shared" data-file="docs/site-search/spec.md" data-why="Только поведение: правила с ID и примеры на данных. Никакого кода, эндпоинтов и таблиц.">
+            <b>2. Dev Spec <span class="tag gate">checkpoint 1</span></b><small>FR/NFR с примерами, без кода · ревьюит вся команда</small></button>
+          <div class="arrow"></div>
+          <button class="node shared" data-file="docs/site-search/slices/README.md" data-why="Вертикальная нарезка: каждый slice даёт наблюдаемое поведение. Ревью до кода нашло шесть проблем.">
+            <b>3. Slices + review <span class="tag gate">checkpoint 2</span></b><small>План работ, зависимости, находки ревью, покрытие FR</small></button>
+          <div class="arrow"></div>
+          <button class="node shared" data-file="docs/site-search/slices/001-contracts.md" data-why="Контракты живут в коде, а не в документах. Slice 001 их создаёт, остальные ссылаются на файлы.">
+            <b>4. Slice 001 — контракты в коде</b><small>openapi, порты, fixtures · PR ревьюят фронт и бэк вместе</small></button>
+          <div class="arrow"></div>
+          <div class="split">
+            <button class="node be" data-file="docs/site-search/slices/008-stock.md" data-why="Пример slice с двумя половинами. Бэкенд закрывает свой PR по AC-B, фронт — по AC-F, slice принят по общим AC.">
+              <b>5. Бэкенд</b><small>slice → свой Change → PR по AC-B</small></button>
+            <button class="node fe" data-file="docs/site-search/slices/003-hotkeys.md" data-why="Пример фронтового slice. Два AC появились по ходу: один на review-slices, один при создании Change.">
+              <b>5. Фронтенд</b><small>slice → свой Change → PR по AC-F</small></button>
+          </div>
+          <div class="arrow"></div>
+          <button class="node scaffold" data-file="examples/openspec-change-003-hotkeys/README.md" data-why="Change создаётся just-in-time по живому коду. Продуктовый вопрос из кода уходит в Dev Spec, а не в Change.">
+            <b>6. OpenSpec Change <span class="tag del">удаляется</span></b><small>/opsx:propose по файлу slice → /opsx:apply</small></button>
+          <div class="arrow"></div>
+          <button class="node shared" data-file="docs/site-search/slices/README.md" data-anchor="Проверка фичи" data-why="То, что не видно ни в одном slice по отдельности: стыки хоткеев, раздела, раскладки и наличия.">
+            <b>7. Проверка фичи</b><small>e2e на собранном приложении</small></button>
+          <div class="arrow"></div>
+          <button class="node shared" data-file="openspec/README.md" data-why="Решения из Change переезжают в ADR и PR, ловушки — в AGENTS.md. Связь требование → проверка держат тесты с AC-ID.">
+            <b>8. Мерж</b><small>Change удалён · остаются спека, slices, контракты, тесты</small></button>
+        </div>
+        <button class="rail" data-file="AGENTS.md" data-why="Постоянные правила проекта: слои, запреты, где что лежит, как тестировать, известные ловушки. Действует на каждом шаге.">
+          <b>AGENTS.md</b>правила проекта на всех шагах</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Slices: кто что делает</h2>
+      <div class="panel">
+        <div class="map">
+          <div class="colh">Бэкенд</div><div class="colh">Slice</div><div class="colh">Фронтенд</div>
+          <button class="node shared wide" data-file="docs/site-search/slices/001-contracts.md" data-why="Делается первым, от него зависят все остальные. После него фронт и бэк работают параллельно.">
+            <b>001 Контракты</b><small>openapi, порты, ошибки, fixtures</small></button>
+
+          <div class="group">Две половины, принимаются вместе</div>
+          <div class="half be">Use case, индекс, ошибки</div>
+          <button class="node" data-file="docs/site-search/slices/002-suggestions.md" data-why="Базовый slice с двумя половинами: общие AC, AC-B для бэкенда и AC-F для фронтенда."><b>002 Подсказки</b></button>
+          <div class="half fe">Панель, ввод, переход</div>
+
+          <div class="half be">Поддерево категорий</div>
+          <button class="node" data-file="docs/site-search/slices/005-category-scope.md" data-why="Зависит от 006: в разделе сначала пробуем другую раскладку, потом весь магазин."><b>005 Раздел</b></button>
+          <div class="half fe">Переключатель, заголовок</div>
+
+          <div class="half be">Порядок, наличие</div>
+          <button class="node" data-file="docs/site-search/slices/008-stock.md" data-why="Правило порядка — бизнес-логика сервера. Фронтовой AC прямо запрещает его дублировать."><b>008 Наличие</b></button>
+          <div class="half fe">Пометка, порядок как у сервера</div>
+
+          <div class="group">Только бэкенд</div>
+          <div class="half be">Перевод раскладки</div>
+          <button class="node" data-file="docs/site-search/slices/006-keyboard-layout.md" data-why="Перевод делает сервер в одном запросе, иначе на клиенте появилась бы вторая гонка ответов."><b>006 Раскладка</b></button>
+          <div class="half none">—</div>
+
+          <div class="half be">Лимит и кэш</div>
+          <button class="node" data-file="docs/site-search/slices/010-rate-limit-cache.md" data-why="Конфликт кэша с актуальностью наличия нашли на review-slices, до кода."><b>010 Нагрузка</b></button>
+          <div class="half none">—</div>
+
+          <div class="half be">Обновление индекса</div>
+          <button class="node" data-file="docs/site-search/slices/011-index-freshness.md" data-why="Граница проведена так, чтобы не править чужой модуль каталога."><b>011 Индекс</b></button>
+          <div class="half none">—</div>
+
+          <div class="group">Только фронтенд</div>
+          <div class="half none">—</div>
+          <button class="node" data-file="docs/site-search/slices/003-hotkeys.md" data-why="Раскладка, «/» при наборе текста и модальное окно — три решения, которые агент принял бы неверно."><b>003 Хоткеи</b></button>
+          <div class="half fe">Ctrl/Cmd+K и «/»</div>
+
+          <div class="half none">—</div>
+          <button class="node" data-file="docs/site-search/slices/004-keyboard-a11y.md" data-why="Сценарий с Ctrl+K отсюда вынесен в проверку фичи — иначе скрытая зависимость от 003."><b>004 Клавиатура</b></button>
+          <div class="half fe">Стрелки, Esc, ARIA</div>
+
+          <div class="half none">—</div>
+          <button class="node" data-file="docs/site-search/slices/007-stale-responses.md" data-why="Медленный старый ответ не должен перетирать свежий."><b>007 Гонка</b></button>
+          <div class="half fe">Устаревшие ответы</div>
+
+          <button class="node shared wide" data-file="docs/site-search/slices/README.md" data-anchor="Проверка фичи" data-why="Сквозной сценарий на собранном приложении после интеграции всех slices.">
+            <b>Проверка фичи</b><small>e2e через собранное приложение</small></button>
+        </div>
+        <p class="note">Ещё файлы: <a href="#" data-file="docs/adr/0001-search-engine.md">ADR-0001</a> · <a href="#" data-file="contracts/search.openapi.yaml">search.openapi.yaml</a> · <a href="#" data-file="examples/openspec-change-003-hotkeys/tasks.md">tasks.md примера Change</a></p>
+      </div>
+    </section>
+  </div>
+
+  <aside class="panel reader" id="reader" aria-live="polite">
+    <div class="reader-head"><span class="crumb" id="crumb">Файл не выбран</span><a id="gh" href="#" target="_blank" rel="noopener" hidden>На GitHub ↗</a></div>
+    <div class="why" id="why" hidden></div>
+    <div class="doc" id="doc"><p class="empty">Выберите блок на схеме. Начать удобно с «1. Brainstorming» — там видно, сколько решений прячется в одной фразе.</p></div>
+  </aside>
+</main>
+
+<script src="assets/content.js"></script>
+<script>
+// Маленький рендерер markdown под файлы примера: заголовки, абзацы, списки (в т.ч. задачи),
+// таблицы, блоки кода, цитаты, **жирный**, `код`, ссылки. Без внешних зависимостей.
+window.md = (() => {
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const inline = (s) => {
+    const codes = [];
+    s = s.replace(/`([^`]+)`/g, (_, c) => { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000'; });
+    s = esc(s)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>')
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>');
+    return s.replace(/\u0000(\d+)\u0000/g, (_, i) => '<code>' + esc(codes[i]) + '</code>');
+  };
+  const cells = (row) => row.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+  return (src) => {
+    const lines = src.replace(/\r/g, '').split('\n');
+    let html = '', i = 0;
+    while (i < lines.length) {
+      const l = lines[i];
+      if (/^```/.test(l)) {
+        const buf = []; i++;
+        while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+        i++; html += '<pre><code>' + esc(buf.join('\n')) + '</code></pre>'; continue;
+      }
+      if (!l.trim()) { i++; continue; }
+      const h = l.match(/^(#{1,4})\s+(.*)$/);
+      if (h) { html += `<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`; i++; continue; }
+      if (/^\s*\|/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+        const head = cells(l); i += 2; const rows = [];
+        while (i < lines.length && /^\s*\|/.test(lines[i])) rows.push(cells(lines[i++]));
+        html += '<table><thead><tr>' + head.map((c) => '<th>' + inline(c) + '</th>').join('') + '</tr></thead><tbody>'
+          + rows.map((r) => '<tr>' + r.map((c) => '<td>' + inline(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
+        continue;
+      }
+      if (/^>\s?/.test(l)) {
+        const buf = [];
+        while (i < lines.length && /^>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^>\s?/, ''));
+        html += '<blockquote>' + inline(buf.join(' ')) + '</blockquote>'; continue;
+      }
+      const li = /^\s*([-*]|\d+\.)\s+/;
+      if (li.test(l)) {
+        const ordered = /^\s*\d+\./.test(l), items = [];
+        while (i < lines.length && (li.test(lines[i]) || (/^\s{2,}\S/.test(lines[i]) && items.length))) {
+          if (li.test(lines[i])) items.push(lines[i].replace(li, '')); else items[items.length - 1] += ' ' + lines[i].trim();
+          i++;
+        }
+        html += `<${ordered ? 'ol' : 'ul'}>` + items.map((t) => {
+          const task = t.match(/^\[( |x)\]\s+(.*)$/);
+          return '<li>' + (task ? `<input type="checkbox" disabled${task[1] === 'x' ? ' checked' : ''}> ` + inline(task[2]) : inline(t)) + '</li>';
+        }).join('') + `</${ordered ? 'ol' : 'ul'}>`;
+        continue;
+      }
+      // Строки приёмки «AC-… / WHEN / THEN» и прочий текст с отступами — сохраняем переносы
+      const buf = [];
+      while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|```|>|\s*\|)/.test(lines[i]) && !li.test(lines[i])) buf.push(lines[i++]);
+      const isAc = buf.some((x) => /^\s+(WHEN|THEN|AND)\b/.test(x)) || /^AC-\d/.test(buf[0]);
+      html += isAc
+        ? '<pre class="ac">' + buf.map((x) => esc(x).replace(/^(\s*)(WHEN|THEN|AND)\b/, '$1<b>$2</b>').replace(/^(AC-[\w-]+)/, '<b>$1</b>')).join('\n') + '</pre>'
+        : '<p>' + buf.map(inline).join('<br>') + '</p>';
+    }
+    return html;
+  };
+})();
+</script>
+<script>
+(() => {
+  const REPO = 'https://github.com/KrtNinja/sdd-workflow-demo/blob/main/';
+  const files = window.SDD_FILES || {};
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+  const dir = (p) => p.includes('/') ? p.slice(0, p.lastIndexOf('/') + 1) : '';
+  const resolve = (base, rel) => {
+    const parts = (dir(base) + rel).split('/'), out = [];
+    for (const x of parts) { if (x === '..') out.pop(); else if (x !== '.' && x !== '') out.push(x); }
+    return out.join('/');
+  };
+  const render = (path, text) => {
+    if (!path.endsWith('.md')) return '<pre><code>' + esc(text) + '</code></pre>';
+    return window.md(text);
+  };
+
+  function open(path, why, anchor, trigger) {
+    const text = files[path];
+    document.querySelectorAll('[aria-current="true"]').forEach((n) => n.removeAttribute('aria-current'));
+    if (trigger) trigger.setAttribute('aria-current', 'true');
+    $('crumb').textContent = path;
+    $('gh').href = REPO + path; $('gh').hidden = false;
+    $('why').hidden = !why; $('why').innerHTML = why ? '<b>Зачем смотреть:</b> ' + esc(why) : '';
+    const doc = $('doc');
+    doc.innerHTML = text == null
+      ? '<p class="empty">Файл не встроен в страницу. Откройте его <a href="' + REPO + path + '" target="_blank" rel="noopener">на GitHub</a> или запустите <code>node scripts/build.mjs</code>.</p>'
+      : render(path, text);
+    doc.querySelectorAll('a[href]').forEach((a) => {
+      const h = a.getAttribute('href');
+      if (/^(https?:|#|mailto:)/.test(h)) { if (/^https?:/.test(h)) a.target = '_blank'; return; }
+      const target = resolve(path, h.split('#')[0]);
+      a.addEventListener('click', (e) => { e.preventDefault(); open(target, '', '', null); });
+    });
+    doc.scrollTop = 0;
+    if (anchor) {
+      const h = [...doc.querySelectorAll('h1,h2,h3')].find((x) => x.textContent.startsWith(anchor));
+      if (h) h.scrollIntoView({ block: 'start' });
+    }
+    if (trigger && matchMedia('(max-width:1000px)').matches) $('reader').scrollIntoView({ behavior: 'smooth' });
+    history.replaceState(null, '', '#' + path);
+  }
+
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-file]');
+    if (!el) return;
+    e.preventDefault();
+    open(el.dataset.file, el.dataset.why || '', el.dataset.anchor || '', el);
+  });
+
+  const initial = decodeURIComponent(location.hash.slice(1));
+  if (initial && files[initial]) {
+    const el = document.querySelector('[data-file="' + initial + '"]');
+    open(initial, el ? el.dataset.why : '', '', el);
+  }
+})();
+</script>
+</body>
+</html>

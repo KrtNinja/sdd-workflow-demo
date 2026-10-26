@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Site Search API
+  version: 1.0.0
+  description: |
+    Контракт создан в slice 001. Источник правды для фронта и бэка.
+    Изменения — только в slice, который объявил «МЕНЯЕТ КОНТРАКТ».
+paths:
+  /api/search/suggest:
+    get:
+      operationId: suggest
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: categoryId
+          in: query
+          required: false
+          description: Текущий раздел. Без него — поиск по всему магазину.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Подсказки
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuggestResponse' }
+        '400':
+          description: Запрос короче 2 символов после нормализации
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Превышен лимит запросов (NFR-4)
+        '503':
+          description: Поиск недоступен (NFR-5)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  schemas:
+    SuggestResponse:
+      type: object
+      required: [products, categories, scope]
+      properties:
+        products:
+          type: array
+          maxItems: 8
+          description: Порядок задаёт сервер (FR-13). Клиент его не меняет.
+          items: { $ref: '#/components/schemas/ProductHit' }
+        categories:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/CategoryHit' }
+        scope:
+          type: string
+          enum: [category, all]
+          description: Где реально искали. all — если в разделе было пусто (FR-4).
+        correctedQuery:
+          type: [string, 'null']
+          description: Запрос после перевода раскладки (FR-9), иначе null.
+    ProductHit:
+      type: object
+      required: [id, title, price, categoryTitle, inStock, url]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        price: { type: integer, description: 'В копейках' }
+        categoryTitle: { type: string }
+        inStock: { type: boolean }
+        url: { type: string }
+    CategoryHit:
+      type: object
+      required: [id, title, url]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        url: { type: string }
+    Error:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          enum: [QUERY_TOO_SHORT, SEARCH_UNAVAILABLE]
